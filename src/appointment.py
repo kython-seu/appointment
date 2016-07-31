@@ -48,13 +48,24 @@ june card id: 27317
 来蕾：275，周三
 """
 
-g_department_code = '1050201'
-g_clinic_date = '2016-08-08'
+g_department_code = '1320501'
+g_clinic_date = '2016-08-02'
 g_pri_doc_codes = ['3347']
 #g_department_code = '1130101'
 #g_clinic_date = '2016-08-08'
 #g_pri_doc_codes = ['227']
-g_user = 'june'
+
+# june's info
+# the password is actually sha256 digest, that can be calculated by "hashlib.sha256(pwd).hexdigest()".
+g_username = '33018319880723262X'
+g_password = '50b9c7460c357fd900fa49b2c50700fe5efae5622025652162e3057eefe8482e'
+g_card_id = '27317'
+
+# jinde's info
+#g_username = '331004198502121830'
+#g_password = 'c714f40f5b9f92a9693dca45932f77cf0365a1e44b36f57eaead0892d6aa7f83'
+#g_card_id = '58809'
+
 g_session_id = None
 
 class Appointment(object):
@@ -63,14 +74,9 @@ class Appointment(object):
         self.clinic_date = g_clinic_date
         self.pri_doc_codes = g_pri_doc_codes
 
-        if g_user == 'june':
-            self.username = '33018319880723262X'
-            self.password = '50b9c7460c357fd900fa49b2c50700fe5efae5622025652162e3057eefe8482e'
-            self.card_id = 27317
-        else:
-            self.username = '331004198502121830'
-            self.password = 'c714f40f5b9f92a9693dca45932f77cf0365a1e44b36f57eaead0892d6aa7f83'
-            self.card_id = 58809
+        self.username = g_username
+        self.password = g_password
+        self.card_id = g_card_id
 
         self.session_id = g_session_id
 
