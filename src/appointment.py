@@ -281,6 +281,10 @@ class Doctor(object):
     def print_info(self):
         print("Doctor code: %s, name: %s, clinic date: %s" % (self.doctor_code, self.doctor_name, self.clinic_date))
 
+    def __eq__(self, other):
+        return self.doctor_name == other.doctor_name and self.doctor_code == other.doctor_code and \
+               self.clinic_date == other.clinic_date
+
 
 '''
 i.e. json representation:

@@ -38,7 +38,7 @@ class TestAppointment(TestCase):
 
     def test_parse_json_list(self):
         parsed_doctors = self.app.parse_json_list(self.j_doc_list, Doctor)
-        #self.assertItemsEqual(self.doctors, parsed_doctors, 'error pass visible doctors')
+        self.assertSequenceEqual(self.doctors, parsed_doctors, 'error pass visible doctors')
         pass
 
     def test_reorder_doctors(self):
@@ -51,8 +51,8 @@ class TestAppointment(TestCase):
         ret_doctors = self.app.reorder_doctors(doctors, pri_list)
         ret_doctors2 = self.app.reorder_doctors(doctors, pri_list2)
 
-        self.assertItemsEqual(self.sorted_doctors, ret_doctors, 'error reorder doctors')
-        self.assertItemsEqual(self.sorted_doctors2, ret_doctors2, 'error reorder doctors')
+        self.assertSequenceEqual(sorted_doctors, ret_doctors, 'error reorder doctors')
+        self.assertSequenceEqual(sorted_doctors2, ret_doctors2, 'error reorder doctors')
 
     def test_query_visible_appointments(self):
         #self.fail()
