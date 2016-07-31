@@ -47,16 +47,23 @@ june card id: 27317
 黄安茜：1052，周五
 来蕾：275，周三
 """
-class Appointment(object):
-    def __init__(self, session_id=None, user=None):
-        #self.department_code = '1050201'
-        #self.clinic_date = '2016-08-05'
-        #self.pri_doc_codes = ['3347']
-        self.department_code = '1130101'
-        self.clinic_date = '2016-08-06'
-        self.pri_doc_codes = ['227']
 
-        if user == 'june':
+g_department_code = '1050201'
+g_clinic_date = '2016-08-08'
+g_pri_doc_codes = ['3347']
+#g_department_code = '1130101'
+#g_clinic_date = '2016-08-08'
+#g_pri_doc_codes = ['227']
+g_user = 'june'
+g_session_id = None
+
+class Appointment(object):
+    def __init__(self):
+        self.department_code = g_department_code
+        self.clinic_date = g_clinic_date
+        self.pri_doc_codes = g_pri_doc_codes
+
+        if g_user == 'june':
             self.username = '33018319880723262X'
             self.password = '50b9c7460c357fd900fa49b2c50700fe5efae5622025652162e3057eefe8482e'
             self.card_id = 27317
@@ -65,7 +72,7 @@ class Appointment(object):
             self.password = 'c714f40f5b9f92a9693dca45932f77cf0365a1e44b36f57eaead0892d6aa7f83'
             self.card_id = 58809
 
-        self.session_id = session_id
+        self.session_id = g_session_id
 
         self.api_url = "http://app.hzwsjsw.gov.cn/api/exec.htm"
         self.headers = {'Accept': 'application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5',
@@ -334,10 +341,10 @@ class SuccessAppointment(object):
 
 
 def main():
-    args = docopt(__doc__)
-
+    #args = docopt(__doc__)
     #appointment = Appointment(args["USERNAME"], args["PASSWORD"], args["DEPART_CODE"], args["DOCTOR_CODE"])
-    appointment = Appointment(session_id='71402ff0528997616e8bb864f397c503cdeca50da9e7b20d0a27d0ad4748c6ca', user='jinde')
+
+    appointment = Appointment()
     appointment.process();
 
 if __name__ == "__main__":
