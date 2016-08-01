@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Upload photos and save the photo count for each user in a property file.
+杭州智慧医疗APP对应的抢号挂号程序.
 
 Usage:
   appointment.py
