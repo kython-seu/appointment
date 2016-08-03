@@ -54,7 +54,7 @@ g_pri_doc_codes = ['35']
 #g_department_code = '1130101'
 #g_clinic_date = '2016-08-08'
 #g_pri_doc_codes = ['227']
-g_prefer_clinic_time = '13:30-14:00'
+g_prefer_clinic_time = None
 
 # june's info
 # the password is actually sha256 digest, that can be calculated by "hashlib.sha256(pwd).hexdigest()".

@@ -48,9 +48,9 @@ june card id: 27317
 来蕾：275，周三
 """
 
-g_department_code = '1050201'
+g_department_code = '1320501'
 g_clinic_date = '2016-08-10'
-g_pri_doc_codes = ['35']
+g_pri_doc_codes = ['275']
 #g_department_code = '1130101'
 #g_clinic_date = '2016-08-08'
 #g_pri_doc_codes = ['227']
