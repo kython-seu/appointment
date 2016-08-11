@@ -10,12 +10,10 @@ Created on Apr 5, 2016
 @author: wangjinde
 """
 
-import sys
-import os
 import re
 import requests
 import json
-import urllib
+import hashlib
 
 from docopt import docopt
 
@@ -46,38 +44,44 @@ june card id: 27317
 
 黄安茜：1052，周五
 来蕾：275，周三
+
+皮肤科：1130101
 """
 
 g_department_code = '1050201'
-g_clinic_date = '2016-08-10'
-g_pri_doc_codes = ['35']
-#g_department_code = '1130101'
-#g_clinic_date = '2016-08-08'
-#g_pri_doc_codes = ['227']
-g_prefer_clinic_time = '13:30-14:00'
+g_clinic_date = '2016-08-18'
+g_pri_doc_codes = ['279']
+g_prefer_clinic_time = '08:00-08:30'
+g_only_pri_docs = False
+g_not_submit = True
+g_verbose = False
 
-# june's info
+
+# june's info, card id '27317'. Password can be either text or hashed.
 # the password is actually sha256 digest, that can be calculated by "hashlib.sha256(pwd).hexdigest()".
-g_username = '33018319880723262X'
-g_password = '50b9c7460c357fd900fa49b2c50700fe5efae5622025652162e3057eefe8482e'
-g_card_id = '27317'
+# g_username = '33018319880723262X'
+# g_password = '50b9c7460c357fd900fa49b2c50700fe5efae5622025652162e3057eefe8482e'
 
-# jinde's info
-#g_username = '331004198502121830'
-#g_password = 'c714f40f5b9f92a9693dca45932f77cf0365a1e44b36f57eaead0892d6aa7f83'
-#g_card_id = '58809'
+# jinde's info, card id '58809'
+g_username = '331004198502121830'
+g_password = 'c714f40f5b9f92a9693dca45932f77cf0365a1e44b36f57eaead0892d6aa7f83'
 
 g_session_id = None
+
 
 class Appointment(object):
     def __init__(self):
         self.department_code = g_department_code
         self.clinic_date = g_clinic_date
         self.pri_doc_codes = g_pri_doc_codes
+        self.only_pri_docs = g_only_pri_docs
 
         self.username = g_username
-        self.password = g_password
-        self.card_id = g_card_id
+        if len(g_password) == 64:
+            self.password = g_password
+        else:
+            self.password = hashlib.sha256(g_password).hexdigest()
+        self.card_id = None
 
         self.session_id = g_session_id
 
@@ -109,7 +113,7 @@ class Appointment(object):
 
         print("Query available doctors...")
         doctors = self.query_visible_doctors()
-        if doctors is None or len(doctors) == 0:
+        if not doctors:
             print("Error: no available doctors.")
             return
 
@@ -130,18 +134,19 @@ class Appointment(object):
             reordered_schedules = self.reorder_schedules(schedules, g_prefer_clinic_time)
             for schedule in reordered_schedules:
                 schedule.print_info()
-                appo_result = self.submit_appointment(schedule)
-                if not appo_result is None:
-                    print("Succeed:")
-                    appo_result.print_info()
-                    succeed = True
-                    break
+                if not g_not_submit:
+                    appo_result = self.submit_appointment(schedule)
+                    if appo_result is not None:
+                        print("Succeed:")
+                        appo_result.print_info()
+                        succeed = True
+                        break
 
             if succeed:
                 break;
 
     def reorder_schedules(self, schedules, prefer_clinic_time):
-        if prefer_clinic_time is None or len(prefer_clinic_time) == 0:
+        if not prefer_clinic_time:
             # in reversed order by default
             reordered_schedules = reversed(schedules)
         else:
@@ -168,6 +173,9 @@ class Appointment(object):
         r = requests.post(self.api_url, data=data, headers=self.headers, cookies=cookies)
         if r.status_code == 200:
             res_content = r.content
+            if g_verbose:
+                print(res_content)
+
             j = json.loads(res_content)
             return_code = j['return_code']
             if return_code == 0:
@@ -181,7 +189,8 @@ class Appointment(object):
                 result = self.login_with_hashed_pwd()
                 if result == 1:
                     print("auto login success. and resend with new cookies and session id...")
-                    new_data, number = re.subn('"session_id":"[a-zA-Z0-9\-_]+"', '"session_id":"%s"' % (self.session_id), data)
+                    print("session id: %s" % self.session_id)
+                    new_data, number = re.subn('"session_id":"[a-zA-Z0-9\-_]+"', '"session_id":"%s"' % self.session_id, data)
                     return self.post_request(new_data, headers=headers, cookies=self.cookies, auto_login=False)
 
         # Error happened
@@ -195,6 +204,11 @@ class Appointment(object):
         if j and int(j['ret_code']) == 0:
             self.session_id = j['session_id']
             success = True
+
+            # get card id if not exist
+            if not self.card_id:
+                cards = self.parse_json_list(j['card_list'], Card)
+                self.card_id = self.parse_and_get_card_id(cards)
 
         return success
 
@@ -212,11 +226,11 @@ class Appointment(object):
         j = self.post_request(data, headers=self.headers, cookies=self.cookies)
         if j and int(j['ret_code']) == 0:
             doctors = self.parse_json_list(j['list'], Doctor)
-            return self.reorder_doctors(doctors, self.pri_doc_codes)
+            return self.filter_reorder_doctors(doctors, self.pri_doc_codes, self.only_pri_docs)
 
         return None
 
-    def reorder_doctors(self, doctors, pri_list):
+    def filter_reorder_doctors(self, doctors, pri_list, only_pri_docs):
         if doctors is None or len(doctors) <= 1 or pri_list is None or len(pri_list) == 0:
             return doctors
 
@@ -227,11 +241,12 @@ class Appointment(object):
             if f_doctor:
                 sorted_doctors.append(f_doctor)
 
-        # add other doctors
-        for doctor in doctors:
-            f_doctor = self.find_by_doctor_code(sorted_doctors, doctor.doctor_code)
-            if not f_doctor:
-                sorted_doctors.append(doctor)
+        if not only_pri_docs:
+            # add other doctors
+            for doctor in doctors:
+                f_doctor = self.find_by_doctor_code(sorted_doctors, doctor.doctor_code)
+                if not f_doctor:
+                    sorted_doctors.append(doctor)
 
         return sorted_doctors
 
@@ -248,13 +263,35 @@ class Appointment(object):
     def query_visible_schedules(self, doctor_code):
         data = 'requestData={"api_Channel":"1","client_version":"1.4.6","app_id":"hzpt_android","app_key":"ZW5sNWVWOWhibVJ5YjJsaw==","user_type":"2","api_name":"api.appointment.doctor.schedule.new","params":{"hospital_id":632,"dept_code":"%s","doctor_code":"%s","dept_name":"ckmz","page_no":1,"page_size":2147483647},"session_id":"%s"}' % (self.department_code, doctor_code, self.session_id)
         j = self.post_request(data, headers=self.headers, cookies=self.cookies)
+        schedules = None
         if j and int(j['ret_code']) == 0:
-            return self.parse_json_list(j['list'], Schedule)
+            schedules = self.parse_json_list(j['list'], Schedule)
         elif j and int(j['ret_code']) == 1:
             # request success but no data.
-            return []
+            schedules = []
 
-        return None
+        # get card id if not exist
+        if not self.card_id:
+            cards = self.parse_json_list(j['user_cards'], Card)
+            self.card_id = self.parse_and_get_card_id(cards)
+
+        return schedules
+
+    def parse_and_get_card_id(self, cards):
+        card_id = None
+        if cards:
+            for card in cards:
+                if 'CITIZEN' == card.card_type.upper():
+                    card_id = str(card.card_id)
+                    card.print_info()
+
+            if not card_id:
+                # not found citizen card, use the first one.
+                card_id = str(cards[0].card_id)
+                card.print_info()
+
+        return card_id
+
 
     '''
     i.e. [{"dept_code":"1050201","dept_name":"产科门诊","doctor_code":"3347","doctor_name":"翟洪波","doctor_position":"主任医师","clinic_date":"2016-08-05","clinic_type":"4"}]
@@ -379,6 +416,25 @@ class SuccessAppointment(object):
     def print_info(self):
         print("Success scheduled appointment, ticket: %s, doctor name: %s, department name: %s, clinic date: %s, clinic time: %s" %
               (self.no_pass_word, self.doctor_name, self.dept_name, self.clinic_date, self.clinic_time))
+
+
+class Card(object):
+    def __init__(self, customer_name, card_type, card_no, card_id):
+        self.customer_name = customer_name
+        self.card_type = card_type
+        self.card_no = card_no
+        self.card_id = card_id
+
+    @staticmethod
+    def from_json(j):
+        if not j:
+            return None
+
+        return Card(j['customer_name'], j['card_type'], j['card_no'], j['card_id'])
+
+    def print_info(self):
+        print("Card info customer name: %s, card type: %s, card no: %s, card id: %s" %
+              (self.customer_name, self.card_type, self.card_no, self.card_id))
 
 
 def main():
