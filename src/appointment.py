@@ -15,6 +15,7 @@ import requests
 import json
 import hashlib
 import time
+from datetime import datetime
 
 from docopt import docopt
 
@@ -104,6 +105,7 @@ class Appointment(object):
             requery_doctors = False
             error_time = 0
             while goon and not requery_doctors:
+                print(str(datetime.now()))
                 for doctor in doctors:
                     print("Query doctor's schedules: ")
                     doctor.print_info()
