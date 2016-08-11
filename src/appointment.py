@@ -14,6 +14,7 @@ import re
 import requests
 import json
 import hashlib
+import time
 
 from docopt import docopt
 
@@ -52,9 +53,11 @@ g_department_code = '1050201'
 g_clinic_date = '2016-08-18'
 g_pri_doc_codes = ['279']
 g_prefer_clinic_time = '08:00-08:30'
-g_only_pri_docs = False
-g_not_submit = True
+g_only_pri_docs = True
+g_submit = True
 g_verbose = False
+
+g_default_schedule_reverse = False
 
 
 # june's info, card id '27317'. Password can be either text or hashed.
@@ -93,14 +96,54 @@ class Appointment(object):
             'User-Agent': 'health'}
         self.cookies = None
 
-    def process(self):
+    def grab_process(self):
+        goon = True
+        retry_error_limit = 100
+        while goon:
+            doctors = self.query_doctors_from_scratch()
+            requery_doctors = False
+            error_time = 0
+            while goon and not requery_doctors:
+                for doctor in doctors:
+                    print("Query doctor's schedules: ")
+                    doctor.print_info()
+
+                    ret_code = self.appointment_with_doctor(doctor)
+
+                    if ret_code == 0:
+                        goon = False
+                        break
+                    elif ret_code == 2:
+                        error_time += 1
+                        if error_time >= retry_error_limit:
+                            requery_doctors = True
+                            break
+
+                time.sleep(1)
+
+    def normal_process(self):
+        doctors = self.query_doctors_from_scratch()
+        if not doctors:
+            print("Error: no available doctors.")
+            return
+
+        for doctor in doctors:
+            print("Query doctor's schedules: ")
+            doctor.print_info()
+
+            ret_code = self.appointment_with_doctor(doctor)
+
+            if ret_code == 0:
+                break
+
+    def query_doctors_from_scratch(self):
         if not self.session_id:
             # login first
             print("Start login...")
             res_login = self.login_with_hashed_pwd()
             if not res_login:
                 print("Failed to login")
-                return
+                return None
 
             print('Login success.')
             print('session id: ' + self.session_id)
@@ -109,46 +152,48 @@ class Appointment(object):
         j = self.query_visible_departments()
         if j is None or int(j['ret_code']) != 0:
             print("Error: query available departments.")
-            return
+            return None
 
         print("Query available doctors...")
-        doctors = self.query_visible_doctors()
-        if not doctors:
-            print("Error: no available doctors.")
-            return
+        return self.query_visible_doctors()
 
-        succeed = False
-        for doctor in doctors:
-            print("Query doctor's schedules: ")
-            doctor.print_info()
-            schedules = self.query_visible_schedules(doctor.doctor_code)
-            if schedules is None:
-                print("Error: query schedules.")
-                return
-            elif len(schedules) == 0:
-                print("No schedules for the doctor.")
-                continue
+        return doctors
 
-            print("Schedule count: %d" % (len(schedules)))
+    '''
+    ret_code: 0-success, 1-no schedules, 2-error
+    '''
+    def appointment_with_doctor(self, doctor):
+        schedules = self.query_visible_schedules(doctor.doctor_code)
+        if schedules is None:
+            print("Error: query schedules.")
+            return 2
+        elif len(schedules) == 0:
+            print("No schedules for the doctor.")
+            return 1
 
-            reordered_schedules = self.reorder_schedules(schedules, g_prefer_clinic_time)
-            for schedule in reordered_schedules:
-                schedule.print_info()
-                if not g_not_submit:
-                    appo_result = self.submit_appointment(schedule)
-                    if appo_result is not None:
-                        print("Succeed:")
-                        appo_result.print_info()
-                        succeed = True
-                        break
+        print("Schedule count: %d" % (len(schedules)))
 
-            if succeed:
-                break;
+        ret_code = 1
+        reordered_schedules = self.reorder_schedules(schedules, g_prefer_clinic_time)
+        for schedule in reordered_schedules:
+            schedule.print_info()
+            if g_submit:
+                appo_result = self.submit_appointment(schedule)
+                if appo_result is not None:
+                    print("Succeed:")
+                    appo_result.print_info()
+                    ret_code = 0
+                    break
+
+        return ret_code
 
     def reorder_schedules(self, schedules, prefer_clinic_time):
         if not prefer_clinic_time:
-            # in reversed order by default
-            reordered_schedules = reversed(schedules)
+            # in default order
+            if g_default_schedule_reverse:
+                reordered_schedules = reversed(schedules)
+            else:
+                reordered_schedules = schedules
         else:
             reordered_schedules = []
             schedules_count = len(schedules)
@@ -161,7 +206,10 @@ class Appointment(object):
 
             if i >= schedules_count:
                 # not find
-                reordered_schedules = reversed(schedules)
+                if g_default_schedule_reverse:
+                    reordered_schedules = reversed(schedules)
+                else:
+                    reordered_schedules = schedules
             else:
                 reordered_schedules.extend(schedules[i:schedules_count])
                 reordered_schedules.extend(schedules[0:i])
@@ -442,7 +490,7 @@ def main():
     #appointment = Appointment(args["USERNAME"], args["PASSWORD"], args["DEPART_CODE"], args["DOCTOR_CODE"])
 
     appointment = Appointment()
-    appointment.process();
+    appointment.grab_process()
 
 if __name__ == "__main__":
     main()
