@@ -114,16 +114,23 @@ class Appointment(object):
                     print("Query doctor's schedules: ")
                     doctor.print_info()
 
-                    ret_code = self.appointment_with_doctor(doctor)
+                    try:
+                        ret_code = self.appointment_with_doctor(doctor)
+                    except Exception as e:
+                        print(e.message)
+                        ret_code = 3
 
                     if ret_code == 0:
                         goon = False
                         break
-                    elif ret_code == 2:
+                    elif ret_code == 2 or ret_code == 3:
                         error_time += 1
                         if error_time >= retry_error_limit:
                             requery_doctors = True
                             break
+                    else:
+                        # reset try error limit
+                        error_time = 0
 
                 time.sleep(1)
 
@@ -240,8 +247,9 @@ class Appointment(object):
 
     def post_request(self, data, headers=None, cookies=None, auto_login=True):
         r = requests.post(self.api_url, data=data, headers=self.headers, cookies=cookies)
+        res_content = r.content
+
         if r.status_code == 200:
-            res_content = r.content
             if g_verbose:
                 print(res_content)
 
