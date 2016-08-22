@@ -51,26 +51,26 @@ june card id: 27317
 """
 
 g_department_code = '1050201'
-g_clinic_date = '2016-08-18'
+g_clinic_date = '2016-09-01'
 g_pri_doc_codes = ['279']
 g_prefer_clinic_time = '08:00-08:30'
-g_only_pri_docs = True
-g_submit = True
+g_only_pri_docs = False
+g_submit = False
 g_verbose = False
 
-g_start_time = '2016-08-11 23:00:00'
+g_start_time = '2016-08-22 09:40:00'
 g_time_format = '%Y-%m-%d %H:%M:%S'
 g_default_schedule_reverse = False
 
 
 # june's info, card id '27317'. Password can be either text or hashed.
 # the password is actually sha256 digest, that can be calculated by "hashlib.sha256(pwd).hexdigest()".
-g_username = '33018319880723262X'
-g_password = '50b9c7460c357fd900fa49b2c50700fe5efae5622025652162e3057eefe8482e'
+#g_username = '33018319880723262X'
+#g_password = '50b9c7460c357fd900fa49b2c50700fe5efae5622025652162e3057eefe8482e'
 
 # jinde's info, card id '58809'
-# g_username = '331004198502121830'
-# g_password = 'c714f40f5b9f92a9693dca45932f77cf0365a1e44b36f57eaead0892d6aa7f83'
+g_username = '331004198502121830'
+g_password = 'c714f40f5b9f92a9693dca45932f77cf0365a1e44b36f57eaead0892d6aa7f83'
 
 g_session_id = None
 
@@ -207,13 +207,19 @@ class Appointment(object):
     def sleep_until(self, until_time):
         while True:
             now = datetime.now()
-            print(str(now))
-            sleep_seconds = int((until_time - now).total_seconds() / 2)
-            if sleep_seconds <= 0:
+            interval = (until_time - now).total_seconds()
+            if interval < 1:
+                print("%s: go..." % str(now))
                 break
 
-            time.sleep(sleep_seconds)
+            sleep_time = 1
+            if interval >= 7200:
+                sleep_time = 3600
+            elif interval >= 10:
+                sleep_time = int(interval / 2)
 
+            print("%s: sleep %d seconds." % (str(now), sleep_time))
+            time.sleep(sleep_time)
 
     def reorder_schedules(self, schedules, prefer_clinic_time):
         if not prefer_clinic_time:
