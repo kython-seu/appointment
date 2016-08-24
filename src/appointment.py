@@ -204,10 +204,15 @@ class Appointment(object):
 
         return ret_code
 
+    def timedelta_total_seconds(self, timedelta):
+        return (
+            timedelta.microseconds + 0.0 +
+            (timedelta.seconds + timedelta.days * 24 * 3600) * 10 ** 6) / 10 ** 6
+
     def sleep_until(self, until_time):
         while True:
             now = datetime.now()
-            interval = (until_time - now).total_seconds()
+            interval = self.timedelta_total_seconds(until_time - now)
             if interval < 1:
                 print("%s: go..." % str(now))
                 break
